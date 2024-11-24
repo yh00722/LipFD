@@ -12,12 +12,12 @@ class BaseOptions:
         parser.add_argument("--fix_backbone", default=False)
         parser.add_argument("--fix_encoder", default=True)
 
-        parser.add_argument("--real_list_path", default="./datasets/val/0_real")
-        parser.add_argument("--fake_list_path", default="./datasets/val/1_fake")
+        parser.add_argument("--real_list_path", default="./datasets/AVLips_new/0_real")
+        parser.add_argument("--fake_list_path", default="./datasets/AVLips_new/1_fake")
         parser.add_argument("--data_label", default="train", help="label to decide whether train or validation dataset",)
 
-        parser.add_argument( "--batch_size", type=int, default=10, help="input batch size")
-        parser.add_argument("--gpu_ids", type=str, default="1", help="gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU",)
+        parser.add_argument( "--batch_size", type=int, default=12, help="input batch size")
+        parser.add_argument("--gpu_ids", type=str, default="0", help="gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU",)
         parser.add_argument("--name", type=str, default="experiment_name", help="name of the experiment. It decides where to store samples and models",)
         parser.add_argument("--num_threads", default=0, type=int, help="# threads for loading data")
         parser.add_argument("--checkpoints_dir", type=str, default="./checkpoints", help="models are saved here",)
@@ -64,10 +64,10 @@ class BaseOptions:
         opt = self.gather_options()
         opt.isTrain = self.isTrain  # train or test
 
-        # process opt.suffix
-        if opt.suffix:
-            suffix = ("_" + opt.suffix.format(**vars(opt))) if opt.suffix != "" else ""
-            opt.name = opt.name + suffix
+        # # process opt.suffix
+        # if opt.suffix:
+        #     suffix = ("_" + opt.suffix.format(**vars(opt))) if opt.suffix != "" else ""
+        #     opt.name = opt.name + suffix
 
         if print_options:
             self.print_options(opt)
@@ -84,14 +84,14 @@ class BaseOptions:
 
         # additional
         # opt.classes = opt.classes.split(',')
-        opt.rz_interp = opt.rz_interp.split(",")
-        opt.blur_sig = [float(s) for s in opt.blur_sig.split(",")]
-        opt.jpg_method = opt.jpg_method.split(",")
-        opt.jpg_qual = [int(s) for s in opt.jpg_qual.split(",")]
-        if len(opt.jpg_qual) == 2:
-            opt.jpg_qual = list(range(opt.jpg_qual[0], opt.jpg_qual[1] + 1))
-        elif len(opt.jpg_qual) > 2:
-            raise ValueError("Shouldn't have more than 2 values for --jpg_qual.")
+        # opt.rz_interp = opt.rz_interp.split(",")
+        # opt.blur_sig = [float(s) for s in opt.blur_sig.split(",")]
+        # opt.jpg_method = opt.jpg_method.split(",")
+        # opt.jpg_qual = [int(s) for s in opt.jpg_qual.split(",")]
+        # if len(opt.jpg_qual) == 2:
+        #     opt.jpg_qual = list(range(opt.jpg_qual[0], opt.jpg_qual[1] + 1))
+        # elif len(opt.jpg_qual) > 2:
+        #     raise ValueError("Shouldn't have more than 2 values for --jpg_qual.")
 
         self.opt = opt
         return self.opt

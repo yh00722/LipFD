@@ -2,7 +2,9 @@ from validate import validate
 from data import create_dataloader
 from trainer.trainer import Trainer
 from options.train_options import TrainOptions
+from tqdm import tqdm
 
+import wandb
 
 def get_val_opt():
     val_opt = TrainOptions().parse(print_options=False)
@@ -24,31 +26,56 @@ if __name__ == "__main__":
     print("Length of data loader: %d" % (len(data_loader)))
     print("Length of val  loader: %d" % (len(val_loader)))
 
+    wandb.init(project="LipFD", config={
+        "epochs": opt.epoch,
+        "batch_size": opt.batch_size,
+        "learning_rate": opt.lr,
+        "save_epoch_freq": opt.save_epoch_freq
+    })
+
     for epoch in range(opt.epoch):
         model.train()
         print("epoch: ", epoch + model.step_bias)
-        for i, (img, crops, label) in enumerate(data_loader):
+
+        for i, (img, crops, label) in enumerate(tqdm(data_loader, desc=f"Training Epoch {epoch+1}")):
             model.total_steps += 1
 
             model.set_input((img, crops, label))
             model.forward()
-            loss = model.get_loss()
+            # loss = model.get_loss()
 
-            model.optimize_parameters()
+            opt_info = model.optimize_parameters() # model.optimize_parameters()
 
+            if i % 100 == 0:
+                print(f"Step {i}: Loss={opt_info['loss']:.4f}, "
+                    f"Avg Grad Norm={opt_info['avg_grad_norm']:.4f}")
+            
+            # wandb
             if model.total_steps % opt.loss_freq == 0:
-                print(
-                    "Train loss: {}\tstep: {}".format(
-                        model.get_loss(), model.total_steps
-                    )
+                wandb.log({
+                    "Train Loss": opt_info['loss'], 
+                    "Average Gradient Norm": opt_info['avg_grad_norm'],
+                    "Step": model.total_steps
+                    })
+                tqdm.write(
+                    "Train loss: {}\tstep: {}".format(opt_info['loss'], model.total_steps)
                 )
 
         if epoch % opt.save_epoch_freq == 0:
             print("saving the model at the end of epoch %d" % (epoch + model.step_bias))
-            model.save_trainer("model_epoch_%s.pth" % (epoch + model.step_bias))
+            model.save_networks("model_epoch_%s.pth" % (epoch + model.step_bias))
 
         model.eval()
         ap, fpr, fnr, acc = validate(model.model, val_loader, opt.gpu_ids)
+
+        wandb.log({
+            "Validation Accuracy": acc,
+            "Validation AP": ap,
+            "Validation FPR": fpr,
+            "Validation FNR": fnr,
+            "Epoch": epoch + model.step_bias
+        })
+
         print(
             "(Val @ epoch {}) acc: {} ap: {} fpr: {} fnr: {}".format(
                 epoch + model.step_bias, acc, ap, fpr, fnr

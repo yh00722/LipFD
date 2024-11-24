@@ -6,6 +6,8 @@ from models import build_model, get_loss
 
 class Trainer(nn.Module):
     def __init__(self, opt):
+
+        super(Trainer, self).__init__()
         self.opt = opt
         self.total_steps = 0
         self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)
@@ -34,8 +36,9 @@ class Trainer(nn.Module):
                 if name.split(".")[0] in ["encoder"]:
                     p.requires_grad = False
                 else:
-                    p.requires_grad = False
-            params = self.model.parameters()
+                    p.requires_grad = True
+                    params.append(p)
+            # params = self.model.parameters()
 
         if opt.optim == "adam":
             self.optimizer = torch.optim.AdamW(
@@ -79,13 +82,55 @@ class Trainer(nn.Module):
         ) + self.criterion1(self.output, self.label)
 
     def get_loss(self):
-        loss = self.loss.data.tolist()
-        return loss[0] if isinstance(loss, type(list())) else loss
+        # loss = self.loss.data.tolist()
+        # # if not loss.requires_grad:
+        # #     print("Warning: Loss doesn't require grad!")
+        # return loss[0] if isinstance(loss, type(list())) else loss
+        if not self.loss.requires_grad:
+            print("Warning: Loss doesn't require grad!")
+        return self.loss.item()
+
+    # def optimize_parameters(self):
+    #     self.optimizer.zero_grad()
+    #     self.loss.backward()
+    #     self.optimizer.step()
 
     def optimize_parameters(self):
+        if self.loss is None:
+            print("Warning: Loss is None!")
+            return
+        if not self.loss.requires_grad:
+            print("Warning: Loss doesn't require gradient!")
+            return
+
         self.optimizer.zero_grad()
+
+        loss_value = self.loss.item()
+
         self.loss.backward()
+
+        total_grad_norm = 0
+        num_params_with_grad = 0
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                if param.grad is None:
+                    print(f"Warning: Parameter {name} has no gradient!")
+                else:
+                    grad_norm = param.grad.norm().item()
+                    total_grad_norm += grad_norm
+                    num_params_with_grad += 1
+
+                    if torch.isnan(param.grad).any():
+                        print(f"Warning: NaN gradients detected in {name}")
+                    if torch.isinf(param.grad).any():
+                        print(f"Warning: Inf gradients detected in {name}")
+
         self.optimizer.step()
+
+        return {
+            'loss': loss_value,
+            'avg_grad_norm': total_grad_norm / num_params_with_grad if num_params_with_grad > 0 else 0
+        }
 
     def get_features(self):
         self.features = self.model.get_features(self.input).to(
